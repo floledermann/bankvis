@@ -1,0 +1,288 @@
+﻿<!doctype html>
+<html class="no-js" lang="en">
+<meta charset="utf-8">
+<title>Bank</title>
+<meta name="description" content="">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style type="text/css">
+body {
+    font: 10px sans-serif;
+}
+svg .axis {
+    text-size: 8;
+    shape-rendering: crispEdges;
+}
+svg .axis line,
+svg .axis path {
+  fill: none;
+  stroke: #000;
+}
+
+svg line.minus {
+    stroke: #ff0000;
+}
+
+svg line.plus {
+    stroke: #00ff00;
+}
+
+.droptarget {
+    border: 2px solid #9999ff;
+    border-radius: 10px;
+    margin: 1em 0;
+    padding: 1em;
+    font-size: 3em;
+}
+
+.droptarget.dropping {
+    background-color: #eeeeff;
+}
+</style>
+
+<body>
+
+
+<main>
+
+<div class="droptarget">
+Drop banking data here (CSV, JSON, XLS, XLSX)
+</div>
+
+<form id="balanceForm">
+Initial Balance <input id="initialBalance" type="number" value="0" step="any">
+</form>
+
+<svg id="fig1" width="100%" height="400px"></svg>
+
+<script src="d3.js"></script>
+<script src="moment-with-langs.js"></script>
+
+<script>
+
+var data = [];
+
+var initialBalance = 0;
+
+var dateKey = null,
+    valueKey = 'Betrag',
+    balanceKey = '_balance';
+    
+function updateBalance(e) {
+    initialBalance = Math.round(parseFloat(document.getElementById("initialBalance").value) * 100);
+    updatePlot(data);
+    e.stopPropagation();
+    e.preventDefault();
+}
+document.getElementById("balanceForm").addEventListener('submit', updateBalance, false);
+document.getElementById("initialBalance").addEventListener('blur', updateBalance, false);
+
+fileDnD('.droptarget', function(files) {  
+
+  // if (!f.type.match('application/json')) {
+   // alert('Not a JSON file!');
+ // }
+
+  var reader = new FileReader();
+
+  reader.onloadend = function(e) {
+    //var result = JSON.parse(this.result);
+    //console.log(result);
+    var loadedData = d3.dsv(";", "text/plain").parse(this.result, convertRow);
+    data = data.concat(loadedData);
+    updatePlot(data);
+  };
+  
+  reader.readAsText(files[0]);
+});
+
+function toNum(str) {
+    var parsed;
+    parsed = str.replace(/[-+\.,]/g,'');
+    if (/^[0-9]+$/.test(parsed)) {
+        parsed = str.split(/\.|,/);
+        if (parsed.length > 1) {
+            parsed = parsed.slice(0,parsed.length-1).join('') + '.' + parsed[parsed.length-1];
+        }
+        else {
+            parsed = parsed[0];
+        }
+        return Math.round(Number(parsed) * 100);
+    }
+    return str;
+}
+
+function convertValue(value, key) {
+    if (value === undefined) return value;
+    // date?
+    var parsed = moment(value, ['DD.MM.YYYY', 'YYYY-MM-DD'], true);
+    if (parsed.isValid()) {
+        dateKey = key;
+        return parsed;
+    }
+    
+    // number?
+    return toNum(value);
+}
+
+function convertRow(d) {
+    var keys = Object.keys(d),
+        result = {};
+    //console.log(d);
+    for (var i=0; i<keys.length; i++) {
+        var key = keys[i],
+            value = d[key];
+        
+        result[key] = convertValue(value, key);
+    }
+    return result;
+}
+
+function updatePlot(data) {
+    
+    if (!dateKey) return;
+    
+    // sort by day, within day first positive then negative balances
+    data.sort(function(a,b) {
+        if (a[dateKey].isSame(b[dateKey], 'day')) {
+            return b[valueKey] - a[valueKey];
+        }
+        return a[dateKey].valueOf() - b[dateKey].valueOf();
+    });
+    
+    var balance = initialBalance,
+        max_balance = balance,
+        min_balance = balance;
+    
+    data.forEach(function(d){
+        balance += d[valueKey];
+        d[balanceKey] = balance;
+        if (balance > max_balance) max_balance = balance;
+        if (balance < min_balance) min_balance = balance;
+    });
+    
+    min_balance = Math.min(min_balance, 0);
+    max_balance = Math.max(max_balance, 0);
+    
+    console.log(balance/100);
+    
+    var MARGIN = {top: 20, right: 10, bottom: 20, left: 40};
+    
+    var svg = d3.select('#fig1'),
+        el = svg.node(),
+        width = el.clientWidth - MARGIN.left - MARGIN.right,
+        height = el.clientHeight - MARGIN.top - MARGIN.bottom;
+
+    var DOMAIN_X = [moment(data[0][dateKey]).subtract('days', 10).toDate(), moment(data[data.length - 1][dateKey]).add('days', 10).toDate()];
+        DOMAIN_Y = [min_balance/100, max_balance/100];
+    
+    var x = d3.time.scale()
+        .domain(DOMAIN_X)
+        .range([MARGIN.left, width])
+        .nice();
+        
+    var y = d3.scale.linear()
+        .domain(DOMAIN_Y)
+        .range([height, MARGIN.bottom])
+        .nice();
+
+    var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient('bottom');
+
+    var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient('left')
+        .ticks(8);
+        
+    function d3El(parent, tagName, className) {
+        var sel = parent.select(tagName + (className ? '.' + className : ''));
+        if (sel.empty()) {
+            sel = parent.append(tagName);
+            sel.attr('class', className);
+        }
+        return sel;
+    }
+
+    var xAxisEl = d3El(svg,'g','axis-x').attr("transform", "translate(0," + height + ")").classed('axis',true).call(xAxis),
+        yAxisEl = d3El(svg,'g','axis-y').attr("transform", "translate(50,0)").classed('axis',true).call(yAxis);
+     
+    var main = d3El(svg,'g','main');
+ 
+    var plot = main.selectAll('line').data(data, function(d) {
+        return d[dateKey].format() + " - " + d[valueKey];
+    });
+    
+    var initial = plot.empty();
+
+    plot.transition()
+        .duration(750)
+        .attr({
+            x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
+            x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
+            y1: function(d) { return y((d[balanceKey] - d[valueKey]) / 100); },
+            y2: function(d) { return y((d[balanceKey]) / 100); },
+        });    
+    
+    var enter = plot.enter()
+        .append('line')
+        .attr({
+            fill: 'none',
+            'stroke-width': 2.0,
+            stroke: '#000000',
+            opacity: 0,
+            'class': function(d) { return d[valueKey] < 0 ? 'minus' : 'plus'; }
+        })
+        .attr({
+            x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
+            x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
+            y1: function(d) { return y((d[balanceKey] - d[valueKey]) / 100); },
+            y2: function(d) { return y((d[balanceKey]) / 100); },
+        });
+        
+    if (!initial) {
+        enter = enter.transition().delay(750);
+    }
+    
+    enter.attr({
+            opacity: 1.0
+        });
+    
+        
+}
+
+function fileDnD(selector, callback) {
+
+  var el_ = document.querySelector(selector);
+  
+  function stop(e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+
+  function dragenter(e) {
+    stop(e);
+    el_.classList.add('dropping');
+  };
+  
+  function dragleave(e) {
+    stop(e);
+    el_.classList.remove('dropping');
+  };
+
+
+  function drop(e) {
+    stop(e);
+    el_.classList.remove('dropping');
+    callback(e.dataTransfer.files, e);
+  };
+
+  el_.addEventListener('dragenter', dragenter, false);
+  el_.addEventListener('dragover', stop, false);
+  el_.addEventListener('dragleave', dragleave, false);
+  el_.addEventListener('drop', drop, false);
+};
+
+</script>
+</body>
+</html>
