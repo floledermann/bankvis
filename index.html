@@ -46,11 +46,15 @@ svg line.plus {
 <main>
 
 <div class="droptarget">
-Drop banking data here (CSV, JSON, XLS, XLSX)
+Drop banking data here (CSV) <!--, JSON, XLS, XLSX)-->
 </div>
 
 <form id="balanceForm">
-Initial Balance <input id="initialBalance" type="number" value="0" step="any">
+<select>
+<option selected value="start">Initial Balance</option>
+<option>Final Balance</option>
+</select>
+<input id="initialBalance" type="number" value="0" step="any">
 </form>
 
 <svg id="fig1" width="100%" height="400px"></svg>
@@ -59,7 +63,6 @@ Initial Balance <input id="initialBalance" type="number" value="0" step="any">
 <script src="moment-with-langs.js"></script>
 
 <script>
-
 var data = [];
 
 var initialBalance = 0;
@@ -142,8 +145,8 @@ function updatePlot(data) {
     
     if (!dateKey) return;
     
-    // sort by day, within day first positive then negative balances
     data.sort(function(a,b) {
+        // sort by day, within day first positive then negative balances
         if (a[dateKey].isSame(b[dateKey], 'day')) {
             return b[valueKey] - a[valueKey];
         }
@@ -163,8 +166,6 @@ function updatePlot(data) {
     
     min_balance = Math.min(min_balance, 0);
     max_balance = Math.max(max_balance, 0);
-    
-    console.log(balance/100);
     
     var MARGIN = {top: 20, right: 10, bottom: 20, left: 40};
     
