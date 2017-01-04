@@ -210,7 +210,7 @@ function updatePlot(data) {
     var main = d3El(svg,'g','main');
  
     var plot = main.selectAll('line').data(data, function(d) {
-        return d[dateKey].format() + " - " + d[valueKey];
+        return d[dateKey].format() + " - " + d[balanceKey] + " - " + d[valueKey];
     });
     
     var initial = plot.empty();
