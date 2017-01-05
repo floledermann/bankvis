@@ -19,12 +19,18 @@ svg .axis path {
   stroke: #000;
 }
 
-svg line.minus {
+svg g.transaction.minus .bar,
+svg g.transaction.minus .tick {
     stroke: #ff0000;
 }
 
-svg line.plus {
-    stroke: #00ff00;
+svg g.transaction.minus .bar {
+    xstroke-dasharray: 4 1;
+}
+
+svg g.transaction.plus .bar,
+svg g.transaction.plus .tick {
+    stroke: #00dd00;
 }
 
 .droptarget {
@@ -176,10 +182,20 @@ function updateData() {
     updatePlot();
 }
 
+function selectOrCreate(parent, tagName, className) {
+    var sel = parent.select(tagName + (className ? '.' + className : ''));
+    if (sel.empty()) {
+        sel = parent.append(tagName);
+        sel.attr('class', className);
+    }
+    return sel;
+}
+
+
 function updatePlot() {
     
     
-    
+    // TODO: move setup to global init function
     var svg = d3.select('#fig1'),
         el = svg.node(),
         width = el.clientWidth - MARGIN.left - MARGIN.right,
@@ -207,50 +223,85 @@ function updatePlot() {
         .orient('left')
         .ticks(8);
         
-    function d3El(parent, tagName, className) {
-        var sel = parent.select(tagName + (className ? '.' + className : ''));
-        if (sel.empty()) {
-            sel = parent.append(tagName);
-            sel.attr('class', className);
-        }
-        return sel;
-    }
-
-    var xAxisEl = d3El(svg,'g','axis-x').attr("transform", "translate(0," + height + ")").classed('axis',true).call(xAxis),
-        yAxisEl = d3El(svg,'g','axis-y').attr("transform", "translate(50,0)").classed('axis',true).call(yAxis);
-     
-    var main = d3El(svg,'g','main');
+    var xAxisEl = selectOrCreate(svg,'g','axis-x'),
+        yAxisEl = selectOrCreate(svg,'g','axis-y'),
+        main = selectOrCreate(svg,'g','main');
+    
+    xAxisEl
+        .attr("transform", "translate(0," + height + ")")
+        .classed('axis',true)
+        .call(xAxis);
+    
+    yAxisEl
+        .attr("transform", "translate(50,0)")
+        .classed('axis',true)
+        .call(yAxis)
  
-    var plot = main.selectAll('line').data(data, function(d) {
+    var plot = main.selectAll('g.transaction').data(data, function(d) {
         return d[dateKey].format() + " - " + d[balanceKey] + " - " + d[valueKey];
     });
     
     var initial = plot.empty();
 
-    plot.transition()
-        .duration(750)
-        .attr({
+    var barPositionAttrs = {
             x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
             x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
             y1: function(d) { return y((d[balanceKey] - d[valueKey]) / 100); },
-            y2: function(d) { return y((d[balanceKey]) / 100); },
-        });    
+            y2: function(d) { return y(d[balanceKey] / 100); },
+        };
+    var tickPositionAttrs = {
+            x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 1 : -4); },
+            x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 6 : 4); },
+            y1: function(d) { return y(d[balanceKey] / 100); },
+            y2: function(d) { return y(d[balanceKey] / 100); },    
+        };
+        
+    // existing elements
+    plot.each(function(d,i){
+        var el = d3.select(this);
+        
+        el.select('line.bar')
+            .transition()
+            .duration(750)
+            .attr(barPositionAttrs);    
     
+        el.select('line.tick')
+            .transition()
+            .duration(750)
+            .attr(tickPositionAttrs);    
+    });
+    
+    // new elements
     var enter = plot.enter()
-        .append('line')
+        .append('g')
         .attr({
-            fill: 'none',
-            'stroke-width': 2.0,
-            stroke: '#000000',
-            opacity: 0,
-            'class': function(d) { return d[valueKey] < 0 ? 'minus' : 'plus'; }
+            'class': function(d) { return 'transaction ' + (d[valueKey] < 0 ? 'minus' : 'plus'); },
+            opacity: 0
         })
-        .attr({
-            x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
-            x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
-            y1: function(d) { return y((d[balanceKey] - d[valueKey]) / 100); },
-            y2: function(d) { return y((d[balanceKey]) / 100); },
-        });
+        .each(function(d,i){
+            var el = d3.select(this);
+            
+            el.append('line')
+                .attr({
+                    'class': 'bar',
+                    fill: 'none',
+                    stroke: '#000000',
+                    'stroke-width': 2.0
+                })
+                .attr(barPositionAttrs)
+            ;
+
+            el.append('line')
+                .attr({
+                    'class': 'tick',
+                    fill: 'none',
+                    stroke: '#000000',
+                    'stroke-width': 1.0
+                })
+                .attr(tickPositionAttrs)
+            ;
+        })
+    ;
         
     // don't animate initial display
     if (!initial) {
@@ -259,6 +310,9 @@ function updatePlot() {
     enter.attr({
         opacity: 1.0
     });
+    
+    // removed elements
+    plot.exit().remove();
     
         
 }
