@@ -63,9 +63,14 @@ Drop banking data here (CSV) <!--, JSON, XLS, XLSX)-->
 <script src="moment-with-langs.js"></script>
 
 <script>
+
+var MARGIN = {top: 20, right: 10, bottom: 20, left: 40};
+
 var data = [];
 
 var initialBalance = 0;
+    max_balance = 0,
+    min_balance = 0;
 
 var dateKey = null,
     valueKey = 'Betrag',
@@ -73,7 +78,7 @@ var dateKey = null,
     
 function updateBalance(e) {
     initialBalance = Math.round(parseFloat(document.getElementById("initialBalance").value) * 100);
-    updatePlot(data);
+    updateData();
     e.stopPropagation();
     e.preventDefault();
 }
@@ -93,7 +98,7 @@ fileDnD('.droptarget', function(files) {
     //console.log(result);
     var loadedData = d3.dsv(";", "text/plain").parse(this.result, convertRow);
     data = data.concat(loadedData);
-    updatePlot(data);
+    updateData();
   };
   
   reader.readAsText(files[0]);
@@ -141,8 +146,8 @@ function convertRow(d) {
     return result;
 }
 
-function updatePlot(data) {
-    
+function updateData() {
+
     if (!dateKey) return;
     
     data.sort(function(a,b) {
@@ -153,9 +158,10 @@ function updatePlot(data) {
         return a[dateKey].valueOf() - b[dateKey].valueOf();
     });
     
-    var balance = initialBalance,
-        max_balance = balance,
-        min_balance = balance;
+    var balance = initialBalance;
+    
+    max_balance = balance;
+    min_balance = balance;
     
     data.forEach(function(d){
         balance += d[valueKey];
@@ -166,8 +172,13 @@ function updatePlot(data) {
     
     min_balance = Math.min(min_balance, 0);
     max_balance = Math.max(max_balance, 0);
+
+    updatePlot();
+}
+
+function updatePlot() {
     
-    var MARGIN = {top: 20, right: 10, bottom: 20, left: 40};
+    
     
     var svg = d3.select('#fig1'),
         el = svg.node(),
@@ -241,13 +252,13 @@ function updatePlot(data) {
             y2: function(d) { return y((d[balanceKey]) / 100); },
         });
         
+    // don't animate initial display
     if (!initial) {
         enter = enter.transition().delay(750);
-    }
-    
+    }    
     enter.attr({
-            opacity: 1.0
-        });
+        opacity: 1.0
+    });
     
         
 }
