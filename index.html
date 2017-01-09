@@ -33,6 +33,13 @@ svg g.transaction.plus .tick {
     stroke: #00dd00;
 }
 
+svg rect.pane {
+  cursor: move;
+  fill: none;
+  pointer-events: all;
+}
+
+
 .droptarget {
     border: 2px solid #9999ff;
     border-radius: 10px;
@@ -129,12 +136,14 @@ function toNum(str) {
 function convertValue(value, key) {
     if (value === undefined) return value;
     // date?
-    var parsed = moment(value, ['DD.MM.YYYY', 'YYYY-MM-DD'], true);
-    if (parsed.isValid()) {
-        dateKey = key;
-        return parsed;
+    // rough check for performance reasons
+    if (value && value.length > 9 && value.length < 25) {
+        var parsed = moment(value, ['DD.MM.YYYY', 'YYYY-MM-DD'], true);
+        if (parsed.isValid()) {
+            dateKey = key;
+            return parsed;
+        }
     }
-    
     // number?
     return toNum(value);
 }
@@ -158,10 +167,14 @@ function updateData() {
     
     data.sort(function(a,b) {
         // sort by day, within day first positive then negative balances
-        if (a[dateKey].isSame(b[dateKey], 'day')) {
+        // use milliseconds to speed up calculations (this will be done often!)
+        time_a = a[dateKey].valueOf();
+        time_b = b[dateKey].valueOf();
+        
+        if (time_a == time_b) {
             return b[valueKey] - a[valueKey];
         }
-        return a[dateKey].valueOf() - b[dateKey].valueOf();
+        return time_a - time_b;
     });
     
     var balance = initialBalance;
@@ -191,50 +204,61 @@ function selectOrCreate(parent, tagName, className) {
     return sel;
 }
 
+var zoom = d3.behavior.zoom()
+    .on("zoom", updateZoom);
+
+var svg = d3.select('#fig1'),
+    el = svg.node(),
+    width = el.clientWidth - MARGIN.left - MARGIN.right,
+    height = el.clientHeight - MARGIN.top - MARGIN.bottom;
+
+var xAxisEl = selectOrCreate(svg,'g','axis axis-x'),
+    yAxisEl = selectOrCreate(svg,'g','axis axis-y'),
+    main = selectOrCreate(svg,'g','main');
+    pane = selectOrCreate(svg,'rect','pane').attr("width", width).attr("height", height).call(zoom);
+
+var x = d3.time.scale()
+    .range([MARGIN.left + 10, width]);
+
+var y = d3.scale.linear()
+    .range([height, MARGIN.bottom]);
+    
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient('bottom');
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient('left')
+    .ticks(8);
+        
+
 
 function updatePlot() {
     
     
     // TODO: move setup to global init function
-    var svg = d3.select('#fig1'),
-        el = svg.node(),
-        width = el.clientWidth - MARGIN.left - MARGIN.right,
-        height = el.clientHeight - MARGIN.top - MARGIN.bottom;
-
-    var DOMAIN_X = [moment(data[0][dateKey]).subtract('days', 10).toDate(), moment(data[data.length - 1][dateKey]).add('days', 10).toDate()];
+    var start_date = data[0][dateKey],
+        end_date = data[data.length - 1][dateKey],
+        num_days = end_date.diff(start_date, 'days');
+        
+    var DOMAIN_X = [start_date.subtract('days', 10).toDate(), end_date.add('days', 10).toDate()];
         DOMAIN_Y = [min_balance/100, max_balance/100];
     
-    var x = d3.time.scale()
-        .domain(DOMAIN_X)
-        .range([MARGIN.left, width])
-        .nice();
-        
-    var y = d3.scale.linear()
-        .domain(DOMAIN_Y)
-        .range([height, MARGIN.bottom])
-        .nice();
+    x.domain(DOMAIN_X).nice();      
+    y.domain(DOMAIN_Y).nice();
+    
+    console.log(num_days * 40 / width);
+    zoom.scaleExtent([1, num_days * 40 / width]);
+    zoom.x(x);
 
-    var xAxis = d3.svg.axis()
-        .scale(x)
-        .orient('bottom');
-
-    var yAxis = d3.svg.axis()
-        .scale(y)
-        .orient('left')
-        .ticks(8);
-        
-    var xAxisEl = selectOrCreate(svg,'g','axis-x'),
-        yAxisEl = selectOrCreate(svg,'g','axis-y'),
-        main = selectOrCreate(svg,'g','main');
     
     xAxisEl
         .attr("transform", "translate(0," + height + ")")
-        .classed('axis',true)
         .call(xAxis);
     
     yAxisEl
-        .attr("transform", "translate(50,0)")
-        .classed('axis',true)
+        .attr("transform", "translate(" + MARGIN.left + ",0)")
         .call(yAxis)
  
     var plot = main.selectAll('g.transaction').data(data, function(d) {
@@ -247,13 +271,13 @@ function updatePlot() {
             x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
             x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
             y1: function(d) { return y((d[balanceKey] - d[valueKey]) / 100); },
-            y2: function(d) { return y(d[balanceKey] / 100); },
+            y2: function(d) { return y(d[balanceKey] / 100); }
         };
     var tickPositionAttrs = {
             x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 1 : -4); },
             x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 6 : 4); },
             y1: function(d) { return y(d[balanceKey] / 100); },
-            y2: function(d) { return y(d[balanceKey] / 100); },    
+            y2: function(d) { return y(d[balanceKey] / 100); }
         };
         
     // existing elements
@@ -316,6 +340,14 @@ function updatePlot() {
     
         
 }
+
+function updateZoom() {
+    var t = d3.event.transform;
+    console.log(zoom.scale());
+    svg.select(".axis-x").call(xAxis);
+    svg.select(".axis-y").call(yAxis);
+}
+
 
 function fileDnD(selector, callback) {
 
