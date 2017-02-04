@@ -213,9 +213,9 @@ var zoom = d3.behavior.zoom()
     .on("zoom", updateZoom);
 
 var svg = d3.select('#fig1'),
-    el = svg.node(),
-    width = el.clientWidth - MARGIN.left - MARGIN.right,
-    height = el.clientHeight - MARGIN.top - MARGIN.bottom;
+    svgEl = svg.node(),
+    width = svgEl.clientWidth - MARGIN.left - MARGIN.right,
+    height = svgEl.clientHeight - MARGIN.top - MARGIN.bottom;
 
 var xAxisEl = selectOrCreate(svg,'g','axis axis-x'),
     yAxisEl = selectOrCreate(svg,'g','axis axis-y'),
