@@ -240,8 +240,6 @@ var yAxis = d3.svg.axis()
 
 
 function updatePlot() {
-    
-    
     // TODO: move setup to global init function
     var start_date = data[0][dateKey],
         end_date = data[data.length - 1][dateKey],
@@ -254,7 +252,8 @@ function updatePlot() {
     y.domain(DOMAIN_Y).nice();
     
     console.log(num_days * 40 / width);
-    zoom.scaleExtent([1, num_days * 40 / width]);
+    // 80 px per day is sufficient to have a tick for each day
+    zoom.scaleExtent([0.1, num_days * 80 / width]);
     zoom.x(x);
 
     
@@ -351,6 +350,7 @@ function updateZoom() {
     console.log(zoom.scale());
     svg.select(".axis-x").call(xAxis);
     svg.select(".axis-y").call(yAxis);
+    main.attr("transform", "translate(" + zoom.translate()[0] + ",0) scale(" + zoom.scale() + ",1)");
 }
 
 
