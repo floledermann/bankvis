@@ -98,6 +98,11 @@ function updateBalance(e) {
 document.getElementById("balanceForm").addEventListener('submit', updateBalance, false);
 document.getElementById("initialBalance").addEventListener('blur', updateBalance, false);
 
+d3.dsv(";", "text/plain")('2013-2016.csv', convertRow, function(loadedData) {
+    data = loadedData;
+    updateData();
+});
+
 fileDnD('.droptarget', function(files) {  
 
   // if (!f.type.match('application/json')) {
