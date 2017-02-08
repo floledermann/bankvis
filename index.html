@@ -77,7 +77,10 @@ Drop banking data here (CSV) <!--, JSON, XLS, XLSX)-->
 
 <script>
 
-var MARGIN = {top: 20, right: 10, bottom: 20, left: 40};
+var MARGIN = {top: 20, right: 10, bottom: 20, left: 40},   
+    PIXELS_PER_DAY = 80,    // 80 px per day is sufficient to have a tick for each day
+    BAR_WIDTH = 8;
+
 
 var data = [];
 
@@ -241,19 +244,20 @@ var yAxis = d3.svg.axis()
 
 function updatePlot() {
     // TODO: move setup to global init function
-    var start_date = data[0][dateKey],
-        end_date = data[data.length - 1][dateKey],
-        num_days = end_date.diff(start_date, 'days');
+    var start_date = moment(data[0][dateKey]).subtract('days', 10),
+        end_date = moment(data[data.length - 1][dateKey]),
+        num_days = end_date.diff(start_date, 'days'),
+        min_days = Math.floor((width - MARGIN.left - 10) / PIXELS_PER_DAY);
         
-    var DOMAIN_X = [start_date.subtract('days', 10).toDate(), end_date.add('days', 10).toDate()];
+    var DOMAIN_X = [moment(end_date).subtract('days', min_days).toDate(), end_date.toDate()];
         DOMAIN_Y = [min_balance/100, max_balance/100];
     
     x.domain(DOMAIN_X).nice();      
     y.domain(DOMAIN_Y).nice();
     
-    console.log(num_days * 40 / width);
-    // 80 px per day is sufficient to have a tick for each day
-    zoom.scaleExtent([0.1, num_days * 80 / width]);
+    //x.range([-num_days * 80, 0]);
+    
+    zoom.scaleExtent([1 / (num_days * PIXELS_PER_DAY / width), 1]);
     zoom.x(x);
 
     
@@ -272,8 +276,8 @@ function updatePlot() {
     var initial = plot.empty();
 
     var barPositionAttrs = {
-            x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
-            x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 2 : 0); },
+            x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? BAR_WIDTH : 0); },
+            x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? BAR_WIDTH : 0); },
             y1: function(d) { return y((d[balanceKey] - d[valueKey]) / 100); },
             y2: function(d) { return y(d[balanceKey] / 100); }
         };
@@ -314,7 +318,7 @@ function updatePlot() {
                     'class': 'bar',
                     fill: 'none',
                     stroke: '#000000',
-                    'stroke-width': 2.0
+                    'stroke-width': BAR_WIDTH
                 })
                 .attr(barPositionAttrs)
             ;
@@ -346,7 +350,6 @@ function updatePlot() {
 }
 
 function updateZoom() {
-    var t = d3.event.transform;
     console.log(zoom.scale());
     svg.select(".axis-x").call(xAxis);
     svg.select(".axis-y").call(yAxis);
