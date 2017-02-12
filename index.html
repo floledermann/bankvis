@@ -19,18 +19,20 @@ svg .axis path {
   stroke: #000;
 }
 
-svg g.transaction.minus .bar,
-svg g.transaction.minus .tick {
+svg g.transaction.minus .bar {
     stroke: #ff0000;
 }
 
-svg g.transaction.minus .bar {
-    xstroke-dasharray: 4 1;
+svg g.transaction.plus .bar {
+    stroke: #00ee00;
 }
 
-svg g.transaction.plus .bar,
+svg g.transaction.minus .tick {
+    stroke: #880000;
+}
+
 svg g.transaction.plus .tick {
-    stroke: #00dd00;
+    stroke: #006600;
 }
 
 svg rect.pane {
@@ -78,8 +80,10 @@ Drop banking data here (CSV) <!--, JSON, XLS, XLSX)-->
 <script>
 
 var MARGIN = {top: 20, right: 10, bottom: 20, left: 40},   
-    PIXELS_PER_DAY = 80,    // 80 px per day is sufficient to have a tick for each day
-    BAR_WIDTH = 8;
+    PIXELS_PER_DAY = 30,    // 80 px per day is sufficient to have a tick for each day
+    BAR_WIDTH = 6,
+    BAR_OFFSET_POSITIVE = 0,
+    BAR_OFFSET_NEGATIVE = 10;
 
 
 var data = [];
@@ -274,16 +278,20 @@ function updatePlot() {
     });
     
     var initial = plot.empty();
+    
+    function barOffsetX(d) {
+        return (d[valueKey] > 0) ? BAR_OFFSET_POSITIVE : BAR_OFFSET_NEGATIVE;
+    }
 
     var barPositionAttrs = {
-            x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? BAR_WIDTH : 0); },
-            x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? BAR_WIDTH : 0); },
+            x1: function(d, i) { return x(d[dateKey].toDate()) + barOffsetX(d) + BAR_WIDTH / 2; },
+            x2: function(d, i) { return x(d[dateKey].toDate()) + barOffsetX(d) + BAR_WIDTH / 2; },
             y1: function(d) { return y((d[balanceKey] - d[valueKey]) / 100); },
             y2: function(d) { return y(d[balanceKey] / 100); }
         };
     var tickPositionAttrs = {
-            x1: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 1 : -4); },
-            x2: function(d, i) { return x(d[dateKey].toDate()) + (d[valueKey] < 0 ? 6 : 4); },
+            x1: function(d, i) { return x(d[dateKey].toDate()) + barOffsetX(d) - 4; },
+            x2: function(d, i) { return x(d[dateKey].toDate()) + barOffsetX(d) + BAR_WIDTH; },
             y1: function(d) { return y(d[balanceKey] / 100); },
             y2: function(d) { return y(d[balanceKey] / 100); }
         };
@@ -317,7 +325,6 @@ function updatePlot() {
                 .attr({
                     'class': 'bar',
                     fill: 'none',
-                    stroke: '#000000',
                     'stroke-width': BAR_WIDTH
                 })
                 .attr(barPositionAttrs)
@@ -327,8 +334,7 @@ function updatePlot() {
                 .attr({
                     'class': 'tick',
                     fill: 'none',
-                    stroke: '#000000',
-                    'stroke-width': 1.0
+                    'stroke-width': 1
                 })
                 .attr(tickPositionAttrs)
             ;
