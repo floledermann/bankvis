@@ -26,15 +26,6 @@ svg g.transaction.minus .bar {
 svg g.transaction.plus .bar {
     stroke: #00ee00;
 }
-
-svg g.transaction.minus .tick {
-    stroke: #880000;
-}
-
-svg g.transaction.plus .tick {
-    stroke: #006600;
-}
-
 svg rect.pane {
   cursor: move;
   fill: none;
@@ -289,12 +280,38 @@ function updatePlot() {
             y1: function(d) { return y((d[balanceKey] - d[valueKey]) / 100); },
             y2: function(d) { return y(d[balanceKey] / 100); }
         };
-    var tickPositionAttrs = {
-            x1: function(d, i) { return x(d[dateKey].toDate()) + barOffsetX(d) - 4; },
-            x2: function(d, i) { return x(d[dateKey].toDate()) + barOffsetX(d) + BAR_WIDTH; },
-            y1: function(d) { return y(d[balanceKey] / 100); },
-            y2: function(d) { return y(d[balanceKey] / 100); }
-        };
+    var tickPositionAttrs = function(d,i) {
+        if (i>0) {
+            var d0 = data[i-1];
+            if ((d[dateKey].valueOf() == d0[dateKey].valueOf()) && ((d[valueKey] > 0) == (d0[valueKey] > 0))) {
+                return {
+                    x1: x(d[dateKey].toDate()) + barOffsetX(d) - 2,
+                    x2: x(d[dateKey].toDate()) + barOffsetX(d) + BAR_WIDTH,
+                    y1: y(d0[balanceKey] / 100),
+                    y2: y(d0[balanceKey] / 100)
+                }
+            }
+        }
+        return {
+            display: 'none'
+        }
+    }
+    var levelPositionAttrs = function(d,i) {
+        if (i>0) {
+            var d0 = data[i-1];
+            if (d[dateKey].valueOf() != d0[dateKey].valueOf()) {
+                return {
+                    x1: x(d0[dateKey].toDate()) + BAR_OFFSET_NEGATIVE + BAR_WIDTH,
+                    x2: x(d[dateKey].toDate()),
+                    y1: y(d0[balanceKey] / 100),
+                    y2: y(d0[balanceKey] / 100)
+                };
+            }
+        }
+        return {
+            display: 'none'
+        }
+    }
         
     // existing elements
     plot.each(function(d,i){
@@ -308,10 +325,17 @@ function updatePlot() {
         el.select('line.tick')
             .transition()
             .duration(750)
-            .attr(tickPositionAttrs);    
+            .attr(tickPositionAttrs(d,i));    
+
+        el.select('line.level')
+            .transition()
+            .duration(750)
+            .attr(levelPositionAttrs(d,i));    
     });
     
     // new elements
+    // TODO: intorduce hierarchical grouping into days!
+    
     var enter = plot.enter()
         .append('g')
         .attr({
@@ -323,21 +347,37 @@ function updatePlot() {
             
             el.append('line')
                 .attr({
+                    'class': 'tick',
+                    fill: 'none',
+                    'stroke-width': 1,
+                    stroke: '#444444',
+                    'shape-rendering': 'crispEdges'
+               })
+                .attr(tickPositionAttrs(d,i))
+            ;
+            el.append('line')
+                .attr({
+                    'class': 'level',
+                    fill: 'none',
+//                        stroke: '#999999',
+                    stroke: '#dddddd',
+                    'stroke-width': 1,
+                    'shape-rendering': 'crispEdges',
+                    //'stroke-dasharray': '3 3'
+                })
+                .attr(levelPositionAttrs(d,i));
+
+            el.append('line')
+                .attr({
                     'class': 'bar',
                     fill: 'none',
-                    'stroke-width': BAR_WIDTH
+                    'stroke-width': BAR_WIDTH,
+                    //'shape-rendering': 'crispEdges'
+
                 })
                 .attr(barPositionAttrs)
             ;
 
-            el.append('line')
-                .attr({
-                    'class': 'tick',
-                    fill: 'none',
-                    'stroke-width': 1
-                })
-                .attr(tickPositionAttrs)
-            ;
         })
     ;
         
