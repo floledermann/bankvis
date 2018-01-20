@@ -261,8 +261,7 @@ function updatePlot() {
     //x.range([-num_days * 80, 0]);
     
     zoom.scaleExtent([1 / (num_days * PIXELS_PER_DAY / width), 1]);
-    // limiting extent does not seem to work....
-    //zoom.translateExtent([[x(DOMAIN_X[0]),0], [x(DOMAIN_X[1]),0]]);
+    zoom.translateExtent([[x(start_date.toDate())-200,0], [x(end_date.toDate())+200,0]]);
 
     
     xAxisEl
