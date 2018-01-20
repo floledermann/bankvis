@@ -309,7 +309,7 @@ function updatePlot() {
             var d0 = data[i-1];
             if (d[dateKey].valueOf() != d0[dateKey].valueOf()) {
                 return {
-                    x1: x(d0[dateKey].toDate()) + BAR_OFFSET_NEGATIVE + BAR_WIDTH,
+                    x1: x(d0[dateKey].toDate()), // + BAR_OFFSET_NEGATIVE + BAR_WIDTH,
                     x2: x(d[dateKey].toDate()),
                     y1: y(d0[balanceKey] / 100),
                     y2: y(d0[balanceKey] / 100)
@@ -355,16 +355,6 @@ function updatePlot() {
             
             el.append('line')
                 .attrs({
-                    'class': 'tick',
-                    fill: 'none',
-                    'stroke-width': 1,
-                    stroke: '#444444',
-                    'shape-rendering': 'crispEdges'
-               })
-                .attrs(tickPositionAttrs(d,i))
-            ;
-            el.append('line')
-                .attrs({
                     'class': 'level',
                     fill: 'none',
 //                        stroke: '#999999',
@@ -374,6 +364,17 @@ function updatePlot() {
                     //'stroke-dasharray': '3 3'
                 })
                 .attrs(levelPositionAttrs(d,i));
+
+            el.append('line')
+                .attrs({
+                    'class': 'tick',
+                    fill: 'none',
+                    'stroke-width': 1,
+                    stroke: '#444444',
+                    'shape-rendering': 'crispEdges'
+               })
+                .attrs(tickPositionAttrs(d,i))
+            ;
 
             el.append('line')
                 .attrs({
