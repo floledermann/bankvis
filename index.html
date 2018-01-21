@@ -256,6 +256,7 @@ var svg = d3.select('#fig1'),
 
 var pane = selectOrCreate(svg,'rect','pane').attr("width", width).attr("height", height).call(zoom),
     xAxisEl = selectOrCreate(svg,'g','axis axis-x'),
+//    xAxis2El = selectOrCreate(svg,'g','axis axis-x-2'),
     yAxisEl = selectOrCreate(svg,'g','axis axis-y'),
     main = selectOrCreate(svg,'g','main');
 
@@ -271,7 +272,13 @@ var xAxis = d3.axisBottom()
 var yAxis = d3.axisLeft()
     .scale(y)
     .ticks(8);
-        
+
+/*    
+var xAxis2 = d3.axisBottom()
+    .scale(x)
+    .ticks(d3.timeMonth.every(1))
+    .tickFormat(d3.timeFormat("%B"));
+*/
 
 
 function updatePlot() {
@@ -296,7 +303,12 @@ function updatePlot() {
     xAxisEl
         .attr("transform", "translate(0," + height + ")")
         .call(xAxis);
-    
+
+/*        
+    xAxis2El
+        .attr("transform", "translate(0," + (height-10) + ")")
+        .call(xAxis2);
+*/   
     yAxisEl
         .attr("transform", "translate(" + MARGIN.left + ",0)")
         .call(yAxis)
