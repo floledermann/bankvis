@@ -393,13 +393,13 @@ function updatePlot() {
         })
         .each(function(d,i){
             var el = d3.select(this);
-            
+/*            
             el.append('line')
                 .attrs({
                     'class': 'level',
                     fill: 'none',
 //                        stroke: '#999999',
-                    stroke: '#dddddd',
+                    stroke: '#eeeeee',
                     'stroke-width': 1,
                     'shape-rendering': 'crispEdges',
                     //'stroke-dasharray': '3 3'
@@ -416,7 +416,7 @@ function updatePlot() {
                })
                 .attrs(tickPositionAttrs(d,i))
             ;
-
+*/
             el.append('line')
                 .attrs({
                     'class': 'bar',
@@ -464,20 +464,53 @@ function updatePlot() {
         
 }
 
+var formatDateRange = d3.timeFormat("%B %d, %Y");
+
 function updateZoom() {
     var xf = d3.event.transform;
     var timeScale = xf.k;
     var timeOffset = xf.x;
     //console.log(timeOffset);
     
-    console.log(x.invert(xf.invertX((MARGIN.left+12))));
+    var startDate = x.invert(xf.invertX((MARGIN.left+10+2)));
+    var endDate = x.invert(xf.invertX((MARGIN.left+width-42)));
 
+    d3.select("#daterange").html(formatDateRange(startDate) + " - " + formatDateRange(endDate));
+    
+    var balanceOffset = 0,
+        balanceScale = 1;
+    var range = getBalanceRange(startDate, endDate);
+    if (range !== null) {
+        var new_yScale = y.copy();
+        console.log(range[0]/100, range[1]/100);
+        new_yScale.domain([range[0]/100, range[1]/100]).nice();
+        // DONT TOUCH THIS if you don't know what you're doing! rescaling from the intial global y scale
+        // (esablishing coordinate system) to new y scale.
+        balanceScale = (new_yScale(range[1]/100)-new_yScale(range[0]/100)) / (y(range[1]/100)-y(range[0]/100)); 
+        balanceOffset = -y(range[1]/100) * balanceScale + new_yScale(range[1]/100);
+    }
     
     var new_xScale = xf.rescaleX(x)
-    var new_yScale = xf.rescaleY(y)
+    //var new_yScale = xf.rescaleY(y)
     svg.select(".axis-x").call(xAxis.scale(new_xScale));
-    //svg.select(".axis-y").call(yAxis.scale(new_yScale));
-    main.attr("transform", "translate(" + timeOffset + ",0) scale(" + timeScale + ",1)");
+    svg.select(".axis-y").call(yAxis.scale(new_yScale));
+    main.attr("transform", "translate(" + timeOffset + "," + balanceOffset + ") scale(" + timeScale + "," + balanceScale + ")");
+}
+
+function getBalanceRange(startDate, endDate) {
+    var min = Number.POSITIVE_INFINITY,
+        max = Number.NEGATIVE_INFINITY;
+        
+    data.forEach(d => {
+        var date = d[dateKey].valueOf();
+        if (date > startDate.valueOf() && date < endDate.valueOf()) {
+            if (d[balanceKey] < min) min = d[balanceKey];
+            if (d[balanceKey] > max) max = d[balanceKey];            
+        }
+    });
+    
+    if (min === Number.POSITIVE_INFINITY || max === Number.NEGATIVE_INFINITY) return null;
+    return [min,max];
 }
 
 
