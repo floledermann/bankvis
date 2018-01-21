@@ -44,6 +44,15 @@ svg rect.pane {
 .droptarget.dropping {
     background-color: #eeeeff;
 }
+
+#infotable th {
+    text-align: right;
+    vertical-align: top;
+}
+
+#infotable td {
+    max-width: 40em;
+}
 </style>
 
 <body>
@@ -63,9 +72,13 @@ Drop banking data here (CSV) <!--, JSON, XLS, XLSX)-->
 <input id="initialBalance" type="number" value="0" step="any">
 </form>
 
+<div id="daterange"></div>
+
 <svg id="fig1" width="100%" height="400px"></svg>
 
-<div id="info" class="info"></div>
+<div id="info" class="info">
+    <table id="infotable"></table>
+</div>
 
 <script src="lib/d3.v4.js"></script>
 <script src="lib/d3-dsv.v1.js"></script>
@@ -82,6 +95,13 @@ var MARGIN = {top: 20, right: 10, bottom: 20, left: 40},
 
 
 var data = [];
+
+var fieldDescriptors = {
+    '_balance': {
+        label: "Balance",
+        hide: false
+    }
+}
 
 var initialBalance = 0;
     max_balance = 0,
@@ -385,13 +405,29 @@ function updatePlot() {
 
                 })
                 .attrs(barPositionAttrs)
-                .on('mouseover', function() {
-                  d3.select('#info').html(d["Buchungstext "]);
-                });
+                .on('mouseover', showInfo);
             ;
 
         })
     ;
+    
+    function showInfo(d) {
+        var rows = d3.select('#infotable').selectAll("tr").data(d3.entries(d));
+        
+        rows.exit().remove();
+        
+        var newRows = rows.enter();
+        
+        var row = newRows.append("tr");          
+        row.append("th");
+        row.append("td");
+        
+        // does not work?
+        //rows = newRows.merge(rows);
+        rows = d3.select('#infotable').selectAll("tr")
+        rows.select("th").html(d => fieldDescriptors[d.key].label);
+        rows.select("td").html(d => d.value);
+    }
         
     // don't animate initial display
     if (!initial) {
