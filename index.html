@@ -125,10 +125,7 @@ document.getElementById("initialBalance").addEventListener('blur', updateBalance
 d3.request('2013-2016.csv')
     .mimeType("text/plain")
     .response(function(xhr) { return d3.dsvFormat(';').parse(xhr.responseText, convertRow); })
-    .get(function(loadedData) {
-        data = loadedData;
-        updateData();
-    })
+    .get(loadData)
 ;
 
 fileDnD('.droptarget', function(files) {  
@@ -140,15 +137,27 @@ fileDnD('.droptarget', function(files) {
   var reader = new FileReader();
 
   reader.onloadend = function(e) {
-    //var result = JSON.parse(this.result);
-    //console.log(result);
-    var loadedData = d3.dsv(";", "text/plain").parse(this.result, convertRow);
-    data = data.concat(loadedData);
-    updateData();
+    loadData(d3.dsvFormat(';').parse(this.result, convertRow));
   };
   
   reader.readAsText(files[0]);
 });
+
+function loadData(loadedData) {
+    loadedData.forEach(d => {
+        // asume heterogeneous data - each item may contain new fields
+        Object.keys(d).forEach(function(key) {
+            if (!fieldDescriptors[key]) {
+                fieldDescriptors[key] = {
+                    label: key,
+                    hidden: false
+                }
+            }
+        });
+    });
+    data = data.concat(loadedData);
+    updateData();
+}
 
 function toNum(str) {
     var parsed;
@@ -215,8 +224,8 @@ function updateData() {
     max_balance = balance;
     min_balance = balance;
     
-    data.forEach(function(d){
-        balance += d[valueKey];
+    data.forEach(function(d,i){
+         balance += d[valueKey];
         d[balanceKey] = balance;
         if (balance > max_balance) max_balance = balance;
         if (balance < min_balance) min_balance = balance;
